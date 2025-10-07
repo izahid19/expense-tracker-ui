@@ -10,7 +10,7 @@ import HomePage from "./pages/Home";
 import AboutPage from "./pages/AboutPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
-import SignUpPage from "./Pages/SignUpPage";
+import SignUpPage from "./pages/SignUpPage";
 
 import { BASE_URL } from "./utils/config";
 import { addUser } from "./utils/userSlice";
