@@ -18,6 +18,8 @@ export default function Home() {
   const expenses = useSelector((state) => state.expense.expenses);
   const user = useSelector((state) => state.user);
 
+  console.log("islogin",user);
+
   const [newItem, setNewItem] = useState({
     name: "",
     price: "",
