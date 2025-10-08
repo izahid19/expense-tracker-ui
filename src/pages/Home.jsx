@@ -25,8 +25,8 @@ export default function Home() {
   });
 
   const [budgetData, setBudgetData] = useState({
-    monthly: { spent: 0, budget: 6000, percentage: 0 },
-    weekly: { spent: 0, budget: 1385, percentage: 0 },
+    monthly: { spent: 0, budget: user?.monthlyExpense || 10000, percentage: 0 },
+    weekly: { spent: 0, budget: user?.weeklyExpense || 2500, percentage: 0 },
   });
 
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
@@ -107,7 +107,7 @@ export default function Home() {
     });
     const weeklySpent = calculateTotal(weeklyExpenses);
 
-    const monthlyBudget = user?.monthlyExpense || 6000;
+    const monthlyBudget = user?.monthlyExpense || 10000;
     const weeklyBudget =
       user?.weeklyExpense || Math.round(monthlyBudget / 4.33);
 
@@ -262,7 +262,7 @@ export default function Home() {
                       onClick={() =>
                         setDeleteModal({ open: true, id: item._id })
                       }
-                      className="ml-8 p-4 border-l-2 border-white/20 hover:bg-black/20 w-16 font-bold text-white rounded-r-lg"
+                      className="ml-1 md:ml-8 p-4 border-l-2 border-white/20 hover:bg-black/20 w-16 font-bold text-white rounded-r-lg"
                     >
                       X
                     </button>
