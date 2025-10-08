@@ -1,1 +1,1 @@
-export const BASE_URL = "https://expence-tracker-be-production.up.railway.app";
+export const BASE_URL = "https://expence-tracker-be.up.railway.app";
