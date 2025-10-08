@@ -11,6 +11,13 @@ import Curve from "../components/RouteAnimation/Curve";
 export default function Dashboard() {
   const dispatch = useDispatch();
   const expenses = useSelector((state) => state.expense.expenses);
+  
+  // Filter states
+  const [filterType, setFilterType] = useState("current_month");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  
   const [filterCategory, setFilterCategory] = useState("All");
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +31,16 @@ export default function Dashboard() {
     Bills: { color: "bg-red-500", textColor: "text-red-500", icon: "📄" },
     Other: { color: "bg-gray-500", textColor: "text-gray-500", icon: "📦" },
   };
+
+  const filterOptions = [
+    { value: "current_month", label: "Current Month", icon: "📅" },
+    { value: "last_month", label: "Last Month", icon: "📆" },
+    { value: "current_week", label: "Current Week", icon: "📍" },
+    { value: "last_week", label: "Last Week", icon: "⏮️" },
+    { value: "current_year", label: "Current Year", icon: "📊" },
+    { value: "last_year", label: "Last Year", icon: "📉" },
+    { value: "custom", label: "Custom Range", icon: "🔧" },
+  ];
 
   // Date formatting helper function
   const formatDateTime = (dateString) => {
@@ -50,106 +67,114 @@ export default function Dashboard() {
     };
   };
 
-  // ✅ Fetch dashboard data from backend
+  // ✅ Fetch dashboard data from backend with filters
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const [dashboardRes, expensesRes] = await Promise.all([
-          axios.get(`${BASE_URL}/user/dashboard`, { withCredentials: true }),
-          axios.get(`${BASE_URL}/user/expenselist`, { withCredentials: true })
-        ]);
-        
-        setDashboardData(dashboardRes.data);
-        dispatch(setExpenses(expensesRes.data.expenses || []));
-      } catch (err) {
-        console.error(err);
-        errorToaster("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchDashboardData();
-  }, [dispatch]);
+  }, [dispatch, filterType, customStartDate, customEndDate]);
 
-  // Calculate totals from expenses (fallback if no dashboard data)
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Build URL with filter parameters
+      let dashboardUrl = `${BASE_URL}/user/dashboard?filterType=${filterType}`;
+      let expensesUrl = `${BASE_URL}/user/expenselist?filterType=${filterType}`;
+      
+      if (filterType === 'custom' && customStartDate && customEndDate) {
+        dashboardUrl += `&customStartDate=${customStartDate}&customEndDate=${customEndDate}`;
+        expensesUrl += `&customStartDate=${customStartDate}&customEndDate=${customEndDate}`;
+      }
+
+      const [dashboardRes, expensesRes] = await Promise.all([
+        axios.get(dashboardUrl, { withCredentials: true }),
+        axios.get(expensesUrl, { withCredentials: true })
+      ]);
+      
+      setDashboardData(dashboardRes.data);
+      dispatch(setExpenses(expensesRes.data.expenses || []));
+    } catch (err) {
+      console.error(err);
+      errorToaster("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setFilterType(newFilter);
+    if (newFilter === 'custom') {
+      setShowCustomDatePicker(true);
+    } else {
+      setShowCustomDatePicker(false);
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
+
+  const applyCustomDateFilter = () => {
+    if (customStartDate && customEndDate) {
+      fetchDashboardData();
+    } else {
+      errorToaster("Please select both start and end dates");
+    }
+  };
+
+  // Calculate totals from expenses
   const calculateTotal = (itemsArr) =>
     itemsArr.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
 
   const totalExpenses = calculateTotal(expenses);
   const totalItems = expenses.length;
 
-  // Filtered items for the list view
+  // Filtered items for category filter (separate from date filter)
   const filteredItems =
     filterCategory === "All"
       ? expenses
       : expenses.filter((item) => item.category === filterCategory);
 
-  // Use dashboard data or fallback to frontend calculations
-  const monthlyStats = dashboardData?.statistics?.monthly;
+  // Use dashboard data
+  const monthlyStats = dashboardData?.statistics?.monthly; // Current month/week stats (always)
   const weeklyStats = dashboardData?.statistics?.weekly;
+  const filteredMonthlyStats = dashboardData?.statistics?.filteredMonthly; // Filtered period stats
+  const filteredWeeklyStats = dashboardData?.statistics?.filteredWeekly;
   const categoryBreakdown = dashboardData?.categoryBreakdown || [];
+  const filteredData = dashboardData?.filteredData || {};
 
-  // Calculate category totals for dashboard (fallback)
-  const frontendCategoryTotals = Object.keys(categories).map(category => {
-    const categoryExpenses = expenses.filter(expense => expense.category === category);
-    const total = calculateTotal(categoryExpenses);
-    const percentage = totalExpenses > 0 ? (total / totalExpenses * 100).toFixed(1) : 0;
-    
-    return {
-      category,
-      total,
-      percentage,
-      count: categoryExpenses.length,
-      ...categories[category]
-    };
-  }).filter(cat => cat.total > 0);
+  // Use backend category data - these are already filtered by the selected period
+  const displayCategoryTotals = categoryBreakdown.map(item => ({
+    category: item._id,
+    total: item.total,
+    count: item.count,
+    percentage: filteredData.totalSpent > 0 ? ((item.total / filteredData.totalSpent) * 100).toFixed(1) : 0,
+    ...categories[item._id] || categories.Other
+  }));
 
-  // Use backend category data or fallback to frontend
-  const displayCategoryTotals = categoryBreakdown.length > 0 
-    ? categoryBreakdown.map(item => ({
-        category: item._id,
-        total: item.total,
-        count: item.count,
-        percentage: totalExpenses > 0 ? (item.total / totalExpenses * 100).toFixed(1) : 0,
-        ...categories[item._id] || categories.Other
-      }))
-    : frontendCategoryTotals;
-
-  // Get recent expenses from dashboard or use first 5 from Redux
-  const recentExpenses = dashboardData?.recentExpenses || expenses.slice(0, 5);
+  // Get recent expenses - should show from filtered period, not always last 5
+  const recentExpenses = filteredData.expenses?.slice(0, 5) || [];
 
   // Get top spending category
   const topCategory = displayCategoryTotals.length > 0 
     ? displayCategoryTotals.reduce((max, category) => category.total > max.total ? category : max)
     : null;
 
-  // Get monthly total from dashboard or calculate
-  const monthlyTotal = monthlyStats?.spent || calculateTotal(expenses.filter(expense => {
-    if (!expense.date) return false;
-    const expenseDate = new Date(expense.date);
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-  }));
+  // Budget data - use filtered stats if available, otherwise fall back to current stats
+  const displayMonthlyStats = filteredMonthlyStats || monthlyStats;
+  const displayWeeklyStats = filteredWeeklyStats || weeklyStats;
+  
+  const monthlyBudget = displayMonthlyStats?.budget || dashboardData?.user?.monthlyExpense || 6000;
+  const weeklyBudget = displayWeeklyStats?.budget || dashboardData?.user?.weeklyExpense || Math.round(monthlyBudget / 4.33);
 
-  // Average expense
-  const averageExpense = totalItems > 0 ? (totalExpenses / totalItems).toFixed(2) : 0;
-
-  // Budget data from dashboard
-  const monthlyBudget = monthlyStats?.budget || dashboardData?.user?.monthlyExpense || 6000;
-  const weeklyBudget = weeklyStats?.budget || dashboardData?.user?.weeklyExpense || Math.round(monthlyBudget / 4.33);
-
-  // ✅ PDF Download
+  // ✅ PDF Download with filtered data
   const downloadPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.setTextColor(30, 58, 138);
     doc.text("Expense Tracker Report", 105, 20, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.text(`Period: ${filteredData.dateRange?.label || 'All Time'}`, 105, 28, { align: "center" });
     doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 28, {
-      align: "center",
-    });
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 35, { align: "center" });
 
     const tableData = filteredItems.map((item, index) => [
       index + 1,
@@ -161,7 +186,7 @@ export default function Dashboard() {
     ]);
 
     autoTable(doc, {
-      startY: 35,
+      startY: 42,
       head: [["#", "Item Name", "Category", "Price", "Date", "Time"]],
       body: tableData,
       theme: "grid",
@@ -169,12 +194,17 @@ export default function Dashboard() {
       bodyStyles: { fontSize: 10 },
     });
 
-    const finalY = doc.lastAutoTable.finalY || 35;
+    const finalY = doc.lastAutoTable.finalY || 42;
     const filteredTotal = calculateTotal(filteredItems);
     doc.text(`Total: Rs ${filteredTotal.toFixed(2)}`, 105, finalY + 15, {
       align: "center",
     });
-    doc.save(`expenses_${new Date().toISOString().split("T")[0]}.pdf`);
+    
+    const fileName = filteredData.dateRange?.label 
+      ? `expenses_${filteredData.dateRange.label.replace(/\s+/g, '_')}.pdf`
+      : `expenses_${new Date().toISOString().split("T")[0]}.pdf`;
+    
+    doc.save(fileName);
   };
 
   // Loading state
@@ -199,32 +229,117 @@ export default function Dashboard() {
             Expense Dashboard
           </h1>
 
+          {/* 🔥 NEW: Date Filter Section */}
+          <div className="bg-base-200 p-6 rounded-xl shadow-lg mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">🔍</span>
+              <h2 className="text-xl font-bold text-primary">Filter by Period</h2>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 mb-4">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleFilterChange(option.value)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    filterType === option.value
+                      ? "bg-primary text-white shadow-md scale-105"
+                      : "bg-base-300 text-base-content hover:bg-base-300/70"
+                  }`}
+                >
+                  <span className="mr-2">{option.icon}</span>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Date Picker */}
+            {showCustomDatePicker && (
+              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary/30">
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-base-content mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-base-300 rounded-lg bg-base-100 text-base-content focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-base-content mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-base-300 rounded-lg bg-base-100 text-base-content focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    onClick={applyCustomDateFilter}
+                    className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Apply Filter
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Current Filter Display */}
+            <div className="mt-4 p-3 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-lg">
+              <p className="text-sm font-medium text-base-content">
+                📍 Showing data for: <span className="font-bold text-primary">{filteredData.dateRange?.label || "Loading..."}</span>
+              </p>
+              {filteredData.totalSpent !== undefined && (
+                <p className="text-xs text-base-content/70 mt-1">
+                  Total: Rs {filteredData.totalSpent.toFixed(2)} • {filteredData.expenseCount} transactions
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Budget Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Filtered Period Total Card */}
+            <div className="bg-base-200 p-6 rounded-xl shadow-lg border-l-4 border-accent">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-base-content/70">Period Total</p>
+                  <h3 className="text-2xl font-bold mt-2">
+                    Rs {filteredData.totalSpent?.toFixed(2) || '0.00'}
+                  </h3>
+                  <p className="text-xs text-base-content/50 mt-1">
+                    {filteredData.expenseCount || 0} transactions
+                  </p>
+                </div>
+                <div className="text-3xl">💸</div>
+              </div>
+            </div>
+
             {/* Monthly Budget Card */}
             <div className="bg-base-200 p-6 rounded-xl shadow-lg border-l-4 border-primary">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-base-content/70">Monthly Budget</p>
                   <h3 className="text-2xl font-bold mt-2">
-                    Rs {monthlyStats ? monthlyStats.spent.toFixed(2) : monthlyTotal.toFixed(2)}
+                    Rs {displayMonthlyStats ? displayMonthlyStats.spent.toFixed(2) : '0.00'}
                   </h3>
                   <p className="text-xs text-base-content/50 mt-1">
                     of Rs {monthlyBudget}
-                    {monthlyStats && (
-                      <span className={`ml-2 ${monthlyStats.isOverBudget ? 'text-error' : 'text-success'}`}>
-                        ({monthlyStats.isOverBudget ? 'Over' : 'Under'} Budget)
+                    {displayMonthlyStats && displayMonthlyStats.budget > 0 && (
+                      <span className={`ml-2 ${displayMonthlyStats.isOverBudget ? 'text-error' : 'text-success'}`}>
+                        ({displayMonthlyStats.isOverBudget ? 'Over' : 'Under'} Budget)
                       </span>
                     )}
                   </p>
                 </div>
                 <div className="text-3xl">💰</div>
               </div>
-              {monthlyStats && (
+              {displayMonthlyStats && (
                 <div className="w-full bg-base-300 rounded-full h-2 mt-2">
                   <div 
-                    className={`h-2 rounded-full ${monthlyStats.isOverBudget ? 'bg-error' : 'bg-primary'}`}
-                    style={{ width: `${Math.min(monthlyStats.percentageUsed, 100)}%` }}
+                    className={`h-2 rounded-full ${displayMonthlyStats.isOverBudget ? 'bg-error' : 'bg-primary'}`}
+                    style={{ width: `${Math.min(displayMonthlyStats.percentageUsed || 0, 100)}%` }}
                   ></div>
                 </div>
               )}
@@ -236,39 +351,27 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm text-base-content/70">Weekly Budget</p>
                   <h3 className="text-2xl font-bold mt-2">
-                    Rs {weeklyStats ? weeklyStats.spent.toFixed(2) : '0.00'}
+                    Rs {displayWeeklyStats ? displayWeeklyStats.spent.toFixed(2) : '0.00'}
                   </h3>
                   <p className="text-xs text-base-content/50 mt-1">
                     of Rs {weeklyBudget}
-                    {weeklyStats && (
-                      <span className={`ml-2 ${weeklyStats.isOverBudget ? 'text-error' : 'text-success'}`}>
-                        ({weeklyStats.isOverBudget ? 'Over' : 'Under'} Budget)
+                    {displayWeeklyStats && displayWeeklyStats.budget > 0 && (
+                      <span className={`ml-2 ${displayWeeklyStats.isOverBudget ? 'text-error' : 'text-success'}`}>
+                        ({displayWeeklyStats.isOverBudget ? 'Over' : 'Under'} Budget)
                       </span>
                     )}
                   </p>
                 </div>
                 <div className="text-3xl">📅</div>
               </div>
-              {weeklyStats && (
+              {displayWeeklyStats && (
                 <div className="w-full bg-base-300 rounded-full h-2 mt-2">
                   <div 
-                    className={`h-2 rounded-full ${weeklyStats.isOverBudget ? 'bg-error' : 'bg-secondary'}`}
-                    style={{ width: `${Math.min(weeklyStats.percentageUsed, 100)}%` }}
+                    className={`h-2 rounded-full ${displayWeeklyStats.isOverBudget ? 'bg-error' : 'bg-secondary'}`}
+                    style={{ width: `${Math.min(displayWeeklyStats.percentageUsed || 0, 100)}%` }}
                   ></div>
                 </div>
               )}
-            </div>
-
-            {/* Total Expenses Card */}
-            <div className="bg-base-200 p-6 rounded-xl shadow-lg border-l-4 border-accent">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-base-content/70">Total Expenses</p>
-                  <h3 className="text-2xl font-bold mt-2">Rs {totalExpenses.toFixed(2)}</h3>
-                </div>
-                <div className="text-3xl">📊</div>
-              </div>
-              <p className="text-xs text-base-content/50 mt-2">{totalItems} total items</p>
             </div>
 
             {/* Top Category Card */}
@@ -310,7 +413,7 @@ export default function Dashboard() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-center text-base-content/50 py-4">No expenses yet</p>
+                  <p className="text-center text-base-content/50 py-4">No expenses in this period</p>
                 )}
               </div>
             </div>
@@ -359,7 +462,7 @@ export default function Dashboard() {
               </div>
               <div className="text-center p-4 bg-base-300 rounded-lg">
                 <p className="text-2xl font-bold text-accent">
-                  {monthlyStats ? Math.round(monthlyStats.percentageUsed) : 0}%
+                  {displayMonthlyStats ? Math.round(displayMonthlyStats.percentageUsed) : 0}%
                 </p>
                 <p className="text-sm text-base-content/70">Budget Used</p>
               </div>
@@ -384,7 +487,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Filter Buttons */}
+            {/* Category Filter Buttons */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
               <button
                 onClick={() => setFilterCategory("All")}
@@ -413,33 +516,37 @@ export default function Dashboard() {
 
             {/* Expense List */}
             <ul className="space-y-3">
-              {filteredItems.map((item) => {
-                const style = categories[item.category] || categories.Other;
-                const { date, time } = formatDateTime(item.date);
-                return (
-                  <li
-                    key={item._id}
-                    className={`w-full flex justify-between ${style.color} rounded-lg`}
-                  >
-                    <div className="p-4 w-full flex flex-col md:flex-row justify-between font-bold text-white">
-                      <div className="flex flex-col">
-                        <span className="capitalize">{item.name}</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs opacity-90 capitalize">
-                            {item.category}
-                          </span>
-                          <span className="text-xs opacity-70">•</span>
-                          <span className="text-xs opacity-70">{date}</span>
-                          <span className="text-xs opacity-70">{time}</span>
+              {filteredItems.length > 0 ? (
+                filteredItems.map((item) => {
+                  const style = categories[item.category] || categories.Other;
+                  const { date, time } = formatDateTime(item.date);
+                  return (
+                    <li
+                      key={item._id}
+                      className={`w-full flex justify-between ${style.color} rounded-lg`}
+                    >
+                      <div className="p-4 w-full flex flex-col md:flex-row justify-between font-bold text-white">
+                        <div className="flex flex-col">
+                          <span className="capitalize">{item.name}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs opacity-90 capitalize">
+                              {item.category}
+                            </span>
+                            <span className="text-xs opacity-70">•</span>
+                            <span className="text-xs opacity-70">{date}</span>
+                            <span className="text-xs opacity-70">{time}</span>
+                          </div>
                         </div>
+                        <span className="flex items-center justify-start md:justify-center text-lg md:text-2xl">
+                          Rs {item.price}
+                        </span>
                       </div>
-                      <span className="flex items-center justify-start md:justify-center text-lg md:text-2xl">
-                        Rs {item.price}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
+                    </li>
+                  );
+                })
+              ) : (
+                <p className="text-center text-base-content/50 py-8">No expenses found for this period</p>
+              )}
             </ul>
 
             {/* Total */}
