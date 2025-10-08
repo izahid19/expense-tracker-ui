@@ -10,8 +10,7 @@ import { Sun, Moon } from "lucide-react";
 const Navbar = () => {
   const [theme, setTheme] = useState("light");
   const user = useSelector((state) => state.user);
-
-  console.log("navbar",user);
+  
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
