@@ -316,8 +316,8 @@ const ProfilePage = () => {
         {showConfirmModal && (
           <dialog open className="modal modal-open">
             <div className="modal-box">
-              <h3 className="font-bold text-lg">Confirm Save</h3>
-              <p className="py-4">Are you sure you want to save the changes to your profile?</p>
+              <h3 className="font-bold text-lg text-base-content">Confirm Save</h3>
+              <p className="py-4 text-base-content">Are you sure you want to save the changes to your profile?</p>
               <div className="modal-action">
                 <button
                   className="btn btn-success"
@@ -325,12 +325,12 @@ const ProfilePage = () => {
                   disabled={isSaving}
                 >
                   {isSaving && (
-                    <span className="loading loading-spinner loading-sm mr-2"></span>
+                    <span className="loading loading-spinner loading-sm mr-2 text-base-content"></span>
                   )}
                   Yes, Save
                 </button>
                 <button
-                  className="btn btn-error"
+                  className="btn btn-error text-base-content"
                   onClick={() => setShowConfirmModal(false)}
                   disabled={isSaving}
                 >
