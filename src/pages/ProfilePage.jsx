@@ -289,7 +289,7 @@ const ProfilePage = () => {
                   {/* Buttons */}
                   <div className="flex justify-end gap-3 mt-10">
                     <button
-                      className="btn btn-success"
+                      className="btn btn-success text-base-content"
                       onClick={() => setShowConfirmModal(true)}
                       disabled={!hasChanges || isSaving}
                     >
@@ -299,7 +299,7 @@ const ProfilePage = () => {
                       Save Changes
                     </button>
                     <button
-                      className="btn btn-error"
+                      className="btn btn-error text-base-content"
                       onClick={handleCancel}
                       disabled={!hasChanges || isSaving}
                     >
@@ -320,12 +320,12 @@ const ProfilePage = () => {
               <p className="py-4 text-base-content">Are you sure you want to save the changes to your profile?</p>
               <div className="modal-action">
                 <button
-                  className="btn btn-success"
+                  className="btn btn-success text-base-content"
                   onClick={updateProfile}
                   disabled={isSaving}
                 >
                   {isSaving && (
-                    <span className="loading loading-spinner loading-sm mr-2 text-base-content"></span>
+                    <span className="loading loading-spinner loading-sm mr-2 "></span>
                   )}
                   Yes, Save
                 </button>
