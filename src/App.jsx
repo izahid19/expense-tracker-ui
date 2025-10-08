@@ -34,7 +34,7 @@ function AppContent() {
       const data = await response.json();
 
       console.log("data", data?.data)
-      dispatch(addUser(data)); // ✅ use dispatch, not appStore.dispatch
+      dispatch(addUser(data?.data)); // ✅ use dispatch, not appStore.dispatch
     } catch (err) {
       console.error(err);
     }
