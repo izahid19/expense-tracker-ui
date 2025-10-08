@@ -6,6 +6,8 @@ import Curve from "../components/RouteAnimation/Curve";
 import { useDispatch, useSelector } from "react-redux";
 import { addUser } from "../utils/userSlice";
 
+axios.defaults.withCredentials = true;
+
 const ProfilePage = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user);
@@ -28,6 +30,9 @@ const ProfilePage = () => {
   const getChangedFields = (original, updated) => {
     const changes = {};
     for (let key in updated) {
+      // Skip emailId as it's not updatable
+      if (key === 'emailId') continue;
+      
       if (JSON.stringify(updated[key]) !== JSON.stringify(original[key])) {
         changes[key] = updated[key];
       }
@@ -46,8 +51,11 @@ const ProfilePage = () => {
         return;
       }
 
-      const response = await axios.patch(`${BASE_URL}/profile/update`, changes);
-      dispatch(addUser(response.data));
+      // Change from PATCH to PUT request
+      const response = await axios.put(`${BASE_URL}/profile/update`, changes);
+      
+      // Update Redux store with the response data
+      dispatch(addUser(response.data.data)); // Access the data property from response
       successToaster("Profile updated successfully!");
       setHasChanges(false);
     } catch (error) {
@@ -87,7 +95,7 @@ const ProfilePage = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: name === "age" || name === "monthlyExpense" || name === "weeklyExpense"
-        ? parseInt(value) || ""
+        ? value === "" ? "" : parseInt(value) || ""
         : value,
     }));
   };
