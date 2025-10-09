@@ -24,11 +24,27 @@ export default function Dashboard() {
 
   const categories = {
     Food: { color: "bg-orange-500", textColor: "text-orange-500", icon: "🍔" },
+    Groceries: { color: "bg-yellow-500", textColor: "text-yellow-500", icon: "🛒" },
     Transport: { color: "bg-blue-500", textColor: "text-blue-500", icon: "🚗" },
     Entertainment: { color: "bg-purple-500", textColor: "text-purple-500", icon: "🎬" },
     Shopping: { color: "bg-pink-500", textColor: "text-pink-500", icon: "🛍️" },
     Health: { color: "bg-green-500", textColor: "text-green-500", icon: "🏥" },
     Bills: { color: "bg-red-500", textColor: "text-red-500", icon: "📄" },
+    Education: { color: "bg-indigo-500", textColor: "text-indigo-500", icon: "📚" },
+    Travel: { color: "bg-cyan-500", textColor: "text-cyan-500", icon: "✈️" },
+    Utilities: { color: "bg-amber-500", textColor: "text-amber-500", icon: "💡" },
+    Rent: { color: "bg-rose-500", textColor: "text-rose-500", icon: "🏠" },
+    Insurance: { color: "bg-teal-500", textColor: "text-teal-500", icon: "🛡️" },
+    Fitness: { color: "bg-lime-500", textColor: "text-lime-500", icon: "💪" },
+    Gifts: { color: "bg-fuchsia-500", textColor: "text-fuchsia-500", icon: "🎁" },
+    "Personal Care": { color: "bg-violet-500", textColor: "text-violet-500", icon: "💅" },
+    "Pet Care": { color: "bg-emerald-500", textColor: "text-emerald-500", icon: "🐾" },
+    "Home Maintenance": { color: "bg-stone-500", textColor: "text-stone-500", icon: "🔧" },
+    Subscriptions: { color: "bg-sky-500", textColor: "text-sky-500", icon: "📱" },
+    "Dining Out": { color: "bg-orange-600", textColor: "text-orange-600", icon: "🍽️" },
+    Investment: { color: "bg-green-600", textColor: "text-green-600", icon: "📈" },
+    Savings: { color: "bg-emerald-600", textColor: "text-emerald-600", icon: "💰" },
+    Charity: { color: "bg-red-400", textColor: "text-red-400", icon: "❤️" },
     Other: { color: "bg-gray-500", textColor: "text-gray-500", icon: "📦" },
   };
 
@@ -133,9 +149,9 @@ export default function Dashboard() {
       : expenses.filter((item) => item.category === filterCategory);
 
   // Use dashboard data
-  const monthlyStats = dashboardData?.statistics?.monthly; // Current month/week stats (always)
+  const monthlyStats = dashboardData?.statistics?.monthly;
   const weeklyStats = dashboardData?.statistics?.weekly;
-  const filteredMonthlyStats = dashboardData?.statistics?.filteredMonthly; // Filtered period stats
+  const filteredMonthlyStats = dashboardData?.statistics?.filteredMonthly;
   const filteredWeeklyStats = dashboardData?.statistics?.filteredWeekly;
   const categoryBreakdown = dashboardData?.categoryBreakdown || [];
   const filteredData = dashboardData?.filteredData || {};
@@ -149,7 +165,7 @@ export default function Dashboard() {
     ...categories[item._id] || categories.Other
   }));
 
-  // Get recent expenses - should show from filtered period, not always last 5
+  // Get recent expenses - should show from filtered period
   const recentExpenses = filteredData.expenses?.slice(0, 5) || [];
 
   // Get top spending category
@@ -157,7 +173,7 @@ export default function Dashboard() {
     ? displayCategoryTotals.reduce((max, category) => category.total > max.total ? category : max)
     : null;
 
-  // Budget data - use filtered stats if available, otherwise fall back to current stats
+  // Budget data - use filtered stats if available
   const displayMonthlyStats = filteredMonthlyStats || monthlyStats;
   const displayWeeklyStats = filteredWeeklyStats || weeklyStats;
   
@@ -229,7 +245,7 @@ export default function Dashboard() {
             Expense Dashboard
           </h1>
 
-          {/* 🔥 NEW: Date Filter Section */}
+          {/* Date Filter Section */}
           <div className="bg-base-200 p-6 rounded-xl shadow-lg mb-8">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">🔍</span>
@@ -395,10 +411,10 @@ export default function Dashboard() {
             {/* Category Breakdown */}
             <div className="bg-base-200 p-6 rounded-xl shadow-lg">
               <h2 className="text-xl font-bold mb-4 text-primary">Category Breakdown</h2>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-96 overflow-y-auto">
                 {displayCategoryTotals.length > 0 ? (
                   displayCategoryTotals.map((category) => (
-                    <div key={category.category} className="flex items-center justify-between p-3 bg-base-300 rounded-lg">
+                    <div key={category.category} className="flex items-center justify-between p-3 bg-base-300 rounded-lg hover:shadow-md transition-shadow">
                       <div className="flex items-center space-x-3">
                         <span className="text-xl">{category.icon}</span>
                         <div>
@@ -424,11 +440,12 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {recentExpenses.length > 0 ? (
                   recentExpenses.map((expense) => {
+                    const style = categories[expense.category] || categories.Other;
                     const { date, time } = formatDateTime(expense.date);
                     return (
-                      <div key={expense._id} className="flex items-center justify-between p-3 bg-base-300 rounded-lg">
+                      <div key={expense._id} className="flex items-center justify-between p-3 bg-base-300 rounded-lg hover:shadow-md transition-shadow">
                         <div className="flex items-center space-x-3">
-                          <span className={`w-3 h-3 rounded-full ${categories[expense.category]?.color || categories.Other.color}`}></span>
+                          <span className="text-xl">{style.icon}</span>
                           <div>
                             <span className="font-semibold capitalize">{expense.name}</span>
                             <p className="text-xs text-base-content/50 capitalize">{expense.category}</p>
@@ -491,7 +508,7 @@ export default function Dashboard() {
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
               <button
                 onClick={() => setFilterCategory("All")}
-                className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${
                   filterCategory === "All"
                     ? "bg-primary text-white"
                     : "bg-base-300 text-base-content"
@@ -503,13 +520,13 @@ export default function Dashboard() {
                 <button
                   key={category}
                   onClick={() => setFilterCategory(category)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                  className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap ${
                     filterCategory === category
                       ? `${style.color} text-white`
                       : "bg-base-300 text-base-content"
                   }`}
                 >
-                  {category}
+                  {style.icon} {category}
                 </button>
               ))}
             </div>
@@ -527,7 +544,10 @@ export default function Dashboard() {
                     >
                       <div className="p-4 w-full flex flex-col md:flex-row justify-between font-bold text-white">
                         <div className="flex flex-col">
-                          <span className="capitalize">{item.name}</span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-lg">{style.icon}</span>
+                            <span className="capitalize">{item.name}</span>
+                          </span>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs opacity-90 capitalize">
                               {item.category}

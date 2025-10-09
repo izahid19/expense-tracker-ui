@@ -25,20 +25,46 @@ export default function Home() {
   });
 
   const [budgetData, setBudgetData] = useState({
-    monthly: { spent: 0, budget: user?.monthlyExpense || 10000, percentage: 0 },
-    weekly: { spent: 0, budget: user?.weeklyExpense || 2500, percentage: 0 },
+    monthly: { 
+      spent: 0, 
+      budget: user?.monthlyExpense || 10000, 
+      percentage: 0,
+      label: ""
+    },
+    weekly: { 
+      spent: 0, 
+      budget: user?.weeklyExpense || 2500, 
+      percentage: 0,
+      label: ""
+    },
   });
 
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
 
   const categories = {
-    Food: { color: "bg-orange-500", textColor: "text-orange-500" },
-    Transport: { color: "bg-blue-500", textColor: "text-blue-500" },
-    Entertainment: { color: "bg-purple-500", textColor: "text-purple-500" },
-    Shopping: { color: "bg-pink-500", textColor: "text-pink-500" },
-    Health: { color: "bg-green-500", textColor: "text-green-500" },
-    Bills: { color: "bg-red-500", textColor: "text-red-500" },
-    Other: { color: "bg-gray-500", textColor: "text-gray-500" },
+    Food: { color: "bg-orange-500", textColor: "text-orange-500", icon: "🍔" },
+    Groceries: { color: "bg-yellow-500", textColor: "text-yellow-500", icon: "🛒" },
+    Transport: { color: "bg-blue-500", textColor: "text-blue-500", icon: "🚗" },
+    Entertainment: { color: "bg-purple-500", textColor: "text-purple-500", icon: "🎬" },
+    Shopping: { color: "bg-pink-500", textColor: "text-pink-500", icon: "🛍️" },
+    Health: { color: "bg-green-500", textColor: "text-green-500", icon: "🏥" },
+    Bills: { color: "bg-red-500", textColor: "text-red-500", icon: "📄" },
+    Education: { color: "bg-indigo-500", textColor: "text-indigo-500", icon: "📚" },
+    Travel: { color: "bg-cyan-500", textColor: "text-cyan-500", icon: "✈️" },
+    Utilities: { color: "bg-amber-500", textColor: "text-amber-500", icon: "💡" },
+    Rent: { color: "bg-rose-500", textColor: "text-rose-500", icon: "🏠" },
+    Insurance: { color: "bg-teal-500", textColor: "text-teal-500", icon: "🛡️" },
+    Fitness: { color: "bg-lime-500", textColor: "text-lime-500", icon: "💪" },
+    Gifts: { color: "bg-fuchsia-500", textColor: "text-fuchsia-500", icon: "🎁" },
+    "Personal Care": { color: "bg-violet-500", textColor: "text-violet-500", icon: "💅" },
+    "Pet Care": { color: "bg-emerald-500", textColor: "text-emerald-500", icon: "🐾" },
+    "Home Maintenance": { color: "bg-stone-500", textColor: "text-stone-500", icon: "🔧" },
+    Subscriptions: { color: "bg-sky-500", textColor: "text-sky-500", icon: "📱" },
+    "Dining Out": { color: "bg-orange-600", textColor: "text-orange-600", icon: "🍽️" },
+    Investment: { color: "bg-green-600", textColor: "text-green-600", icon: "📈" },
+    Savings: { color: "bg-emerald-600", textColor: "text-emerald-600", icon: "💰" },
+    Charity: { color: "bg-red-400", textColor: "text-red-400", icon: "❤️" },
+    Other: { color: "bg-gray-500", textColor: "text-gray-500", icon: "📦" },
   };
 
   const formatDateTime = (dateString) => {
@@ -64,11 +90,43 @@ export default function Home() {
 
     const fetchExpenses = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/user/expenselist`, {
-          withCredentials: true,
+        // Fetch both expenses and dashboard data
+        const [expensesRes, dashboardRes] = await Promise.all([
+          axios.get(`${BASE_URL}/user/expenselist`, { withCredentials: true }),
+          axios.get(`${BASE_URL}/user/dashboard?filterType=current_month`, { withCredentials: true })
+        ]);
+        
+        dispatch(setExpenses(expensesRes.data.expenses || []));
+        
+        // Update budget data with labels from dashboard
+        const monthlyStats = dashboardRes.data.statistics.monthly;
+        const weeklyStats = dashboardRes.data.statistics.weekly;
+        
+        // Get month label
+        const now = new Date();
+        const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        // Get week label
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        const weekLabel = `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        
+        setBudgetData({
+          monthly: {
+            spent: monthlyStats.spent,
+            budget: monthlyStats.budget,
+            percentage: monthlyStats.percentageUsed,
+            label: monthLabel
+          },
+          weekly: {
+            spent: weeklyStats.spent,
+            budget: weeklyStats.budget,
+            percentage: weeklyStats.percentageUsed,
+            label: weekLabel
+          }
         });
-        dispatch(setExpenses(res.data.expenses || []));
-        calculateBudgetData(res.data.expenses || []);
       } catch (err) {
         console.error(err);
         errorToaster("Failed to load expenses");
@@ -77,54 +135,6 @@ export default function Home() {
 
     fetchExpenses();
   }, [dispatch, user]);
-
-  const calculateBudgetData = (expensesList) => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const monthlyExpenses = expensesList.filter((expense) => {
-      if (!expense.date) return false;
-      const expenseDate = new Date(expense.date);
-      return (
-        expenseDate.getMonth() === currentMonth &&
-        expenseDate.getFullYear() === currentYear
-      );
-    });
-    const monthlySpent = calculateTotal(monthlyExpenses);
-
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    const weeklyExpenses = expensesList.filter((expense) => {
-      if (!expense.date) return false;
-      const expenseDate = new Date(expense.date);
-      return expenseDate >= startOfWeek && expenseDate <= endOfWeek;
-    });
-    const weeklySpent = calculateTotal(weeklyExpenses);
-
-    const monthlyBudget = user?.monthlyExpense || 10000;
-    const weeklyBudget =
-      user?.weeklyExpense || Math.round(monthlyBudget / 4.33);
-
-    setBudgetData({
-      monthly: {
-        spent: monthlySpent,
-        budget: monthlyBudget,
-        percentage:
-          monthlyBudget > 0 ? (monthlySpent / monthlyBudget) * 100 : 0,
-      },
-      weekly: {
-        spent: weeklySpent,
-        budget: weeklyBudget,
-        percentage: weeklyBudget > 0 ? (weeklySpent / weeklyBudget) * 100 : 0,
-      },
-    });
-  };
 
   const calculateTotal = (itemsArr) =>
     itemsArr.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
@@ -159,7 +169,30 @@ export default function Home() {
       dispatch(addExpense(savedExpense));
       successToaster("Expense added!");
       setNewItem({ name: "", price: "", category: "Food" });
-      calculateBudgetData([...expenses, savedExpense]);
+      
+      // Refresh budget data after adding expense
+      const dashboardRes = await axios.get(
+        `${BASE_URL}/user/dashboard?filterType=current_month`, 
+        { withCredentials: true }
+      );
+      
+      const monthlyStats = dashboardRes.data.statistics.monthly;
+      const weeklyStats = dashboardRes.data.statistics.weekly;
+      
+      setBudgetData({
+        monthly: {
+          spent: monthlyStats.spent,
+          budget: monthlyStats.budget,
+          percentage: monthlyStats.percentageUsed,
+          label: budgetData.monthly.label
+        },
+        weekly: {
+          spent: weeklyStats.spent,
+          budget: weeklyStats.budget,
+          percentage: weeklyStats.percentageUsed,
+          label: budgetData.weekly.label
+        }
+      });
     } catch (err) {
       console.error(err);
       errorToaster("Failed to add expense");
@@ -173,9 +206,31 @@ export default function Home() {
       });
       dispatch(removeUserExpense(id));
       successToaster("Expense deleted");
-      const updatedExpenses = expenses.filter((expense) => expense._id !== id);
-      calculateBudgetData(updatedExpenses);
       setDeleteModal({ open: false, id: null });
+      
+      // Refresh budget data after deleting expense
+      const dashboardRes = await axios.get(
+        `${BASE_URL}/user/dashboard?filterType=current_month`, 
+        { withCredentials: true }
+      );
+      
+      const monthlyStats = dashboardRes.data.statistics.monthly;
+      const weeklyStats = dashboardRes.data.statistics.weekly;
+      
+      setBudgetData({
+        monthly: {
+          spent: monthlyStats.spent,
+          budget: monthlyStats.budget,
+          percentage: monthlyStats.percentageUsed,
+          label: budgetData.monthly.label
+        },
+        weekly: {
+          spent: weeklyStats.spent,
+          budget: weeklyStats.budget,
+          percentage: weeklyStats.percentageUsed,
+          label: budgetData.weekly.label
+        }
+      });
     } catch (err) {
       console.error(err);
       errorToaster("Failed to delete");
@@ -213,7 +268,9 @@ export default function Home() {
                 }
               >
                 {Object.keys(categories).map((cat) => (
-                  <option key={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {categories[cat].icon} {cat}
+                  </option>
                 ))}
               </select>
               <input
@@ -244,7 +301,10 @@ export default function Home() {
                   >
                     <div className="p-4 w-full flex flex-col md:flex-row justify-between font-bold text-white">
                       <div className="flex flex-col">
-                        <span className="capitalize">{item.name}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-lg">{style.icon}</span>
+                          <span className="capitalize">{item.name}</span>
+                        </span>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs opacity-90 capitalize">
                             {item.category}
@@ -285,7 +345,7 @@ export default function Home() {
             <h2 className="text-xl font-semibold mt-4 mb-2">Categories</h2>
           )}
           {/* Category Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 mb-6">
             {Object.entries(categories).map(([category, style]) => {
               const totalForCat = calculateTotal(
                 expenses.filter((e) => e.category === category)
@@ -293,8 +353,9 @@ export default function Home() {
               return totalForCat > 0 ? (
                 <div
                   key={category}
-                  className="bg-base-200 p-3 rounded-lg text-center"
+                  className="bg-base-200 p-3 rounded-lg text-center hover:shadow-md transition-shadow"
                 >
+                  <div className="text-2xl mb-1">{style.icon}</div>
                   <div className={`text-xs font-semibold ${style.textColor}`}>
                     {category}
                   </div>
@@ -309,9 +370,17 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {/* Monthly Budget Card */}
             <div className="bg-base-200 p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-primary mb-2">
-                Monthly Budget
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-primary">
+                  Monthly Budget
+                </h3>
+                <span className="text-2xl">📅</span>
+              </div>
+              {budgetData.monthly.label && (
+                <p className="text-sm text-base-content/70 mb-2 font-medium">
+                  {budgetData.monthly.label}
+                </p>
+              )}
               <p>
                 <strong>Spent:</strong> Rs {budgetData.monthly.spent.toFixed(2)}
               </p>
@@ -328,7 +397,7 @@ export default function Home() {
               <div className="w-full bg-base-300 h-3 rounded-full mt-2">
                 <div
                   className="bg-primary h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${budgetData.monthly.percentage}%` }}
+                  style={{ width: `${Math.min(budgetData.monthly.percentage, 100)}%` }}
                 ></div>
               </div>
               <p className="text-sm mt-1">
@@ -338,9 +407,17 @@ export default function Home() {
 
             {/* Weekly Budget Card */}
             <div className="bg-base-200 p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-secondary mb-2">
-                Weekly Budget
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-secondary">
+                  Weekly Budget
+                </h3>
+                <span className="text-2xl">📍</span>
+              </div>
+              {budgetData.weekly.label && (
+                <p className="text-sm text-base-content/70 mb-2 font-medium">
+                  {budgetData.weekly.label}
+                </p>
+              )}
               <p>
                 <strong>Spent:</strong> Rs {budgetData.weekly.spent.toFixed(2)}
               </p>
@@ -357,7 +434,7 @@ export default function Home() {
               <div className="w-full bg-base-300 h-3 rounded-full mt-2">
                 <div
                   className="bg-secondary h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${budgetData.weekly.percentage}%` }}
+                  style={{ width: `${Math.min(budgetData.weekly.percentage, 100)}%` }}
                 ></div>
               </div>
               <p className="text-sm mt-1">
