@@ -16,7 +16,11 @@ const SignUpSchema = Yup.object().shape({
   lastName: Yup.string().required("Last Name is required"),
   emailId: Yup.string().email("Invalid email").required("Email is required"),
   password: Yup.string()
-    .min(6, "Password must be at least 6 characters")
+    .min(8, "Password must be at least 8 characters")
+    .matches(/[a-z]/, "Password must contain at least one lowercase letter")
+    .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .matches(/[0-9]/, "Password must contain at least one number")
+    .matches(/[@$!%*?&#]/, "Password must contain at least one special character (@$!%*?&#)")
     .required("Password is required"),
 });
 
@@ -29,6 +33,7 @@ const SignUpPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -147,15 +152,27 @@ const SignUpPage = () => {
                 <label htmlFor="password" className="label">
                   <span className="label-text">Password</span>
                 </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  className="input input-bordered w-full bg-base-100 text-base-content"
-                  placeholder="Enter your password"
-                />
+                <div className="flex gap-2">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={handleChange}
+                    className="input input-bordered flex-1 bg-base-100 text-base-content"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="btn btn-primary"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <span className="text-xs opacity-60 mt-1">
+                  Must include uppercase, lowercase, number & special character
+                </span>
+                <br />
                 {errors.password && (
                   <span className="text-error text-sm mt-1">
                     {errors.password}

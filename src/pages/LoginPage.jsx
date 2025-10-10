@@ -23,6 +23,7 @@ const LoginPage = () => {
   const [password, setPassword] = React.useState("");
   const [errors, setErrors] = React.useState({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -102,15 +103,24 @@ const LoginPage = () => {
                 <label htmlFor="password" className="label">
                   <span className="label-text font-medium">Password</span>
                 </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input input-bordered bg-base-100 text-base-content w-full"
-                  placeholder="Enter your password"
-                />
+                <div className="flex gap-2">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input input-bordered bg-base-100 text-base-content flex-1"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="btn btn-primary"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
                 {errors.password && (
                   <span className="text-error text-sm mt-1">
                     {errors.password}
@@ -136,7 +146,7 @@ const LoginPage = () => {
 
             {/* Signup Link */}
             <div className="text-center mt-4 text-sm opacity-80">
-              Don’t have an account?{" "}
+              Don't have an account?{" "}
               <span
                 onClick={() => navigate("/signup")}
                 className="link link-primary cursor-pointer"
