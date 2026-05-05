@@ -45,6 +45,8 @@ function AppContent() {
     fetchUser();
   }, []);
 
+  console.log(data);
+
   return (
     <>
       {/* ✅ Put Toaster here so it's always available */}
