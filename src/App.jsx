@@ -41,8 +41,6 @@ function AppContent() {
     }
   };
 
-  console.log("App Content Rendered")
-
   React.useEffect(() => {
     fetchUser();
   }, []);
